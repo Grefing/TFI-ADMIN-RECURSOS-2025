@@ -1,17 +1,29 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useForm } from 'react-hook-form';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { ArrowLeft, Save } from 'lucide-react';
-import { Equipment } from '@/types/equipment';
-import { addEquipment, updateEquipment, getEquipment } from '@/utils/storage';
-import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { Controller, useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft, Save } from "lucide-react";
+import { Equipment } from "@/types/equipment";
+import { addEquipment, updateEquipment, getEquipment } from "@/utils/storage";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const InventoryForm = () => {
   const { id } = useParams();
@@ -19,14 +31,21 @@ const InventoryForm = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isEdit, setIsEdit] = useState(false);
-  
-  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<Equipment>();
-  const watchType = watch('type');
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    setValue,
+    watch,
+    control,
+  } = useForm<Equipment>();
+  const watchType = watch("type");
 
   useEffect(() => {
     if (id) {
       setIsEdit(true);
-      const equipment = getEquipment().find(e => e.id === id);
+      const equipment = getEquipment().find((e) => e.id === id);
       if (equipment) {
         Object.keys(equipment).forEach((key) => {
           setValue(key as keyof Equipment, equipment[key as keyof Equipment]);
@@ -60,21 +79,27 @@ const InventoryForm = () => {
       });
     }
 
-    navigate('/inventory');
+    navigate("/inventory");
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/inventory')}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => navigate("/inventory")}
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight">
-            {isEdit ? 'Editar Equipo' : 'Agregar Equipo'}
+            {isEdit ? "Editar Equipo" : "Agregar Equipo"}
           </h1>
           <p className="text-muted-foreground">
-            {isEdit ? 'Actualiza la información del equipo' : 'Registra un nuevo equipo en el inventario'}
+            {isEdit
+              ? "Actualiza la información del equipo"
+              : "Registra un nuevo equipo en el inventario"}
           </p>
         </div>
       </div>
@@ -94,16 +119,24 @@ const InventoryForm = () => {
                     <Input
                       id="name"
                       placeholder="Ej: PC-OFICINA-001"
-                      {...register('name', { required: 'El nombre es requerido' })}
-                      className={errors.name ? 'border-destructive' : ''}
+                      {...register("name", {
+                        required: "El nombre es requerido",
+                      })}
+                      className={errors.name ? "border-destructive" : ""}
                     />
-                    {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+                    {errors.name && (
+                      <p className="text-sm text-destructive">
+                        {errors.name.message}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="type">Tipo de Equipo *</Label>
                     <Select
-                      onValueChange={(value) => setValue('type', value as Equipment['type'])}
+                      onValueChange={(value) =>
+                        setValue("type", value as Equipment["type"])
+                      }
                       defaultValue={watchType}
                     >
                       <SelectTrigger>
@@ -124,10 +157,16 @@ const InventoryForm = () => {
                     <Input
                       id="brand"
                       placeholder="Ej: Dell, HP, Lenovo"
-                      {...register('brand', { required: 'La marca es requerida' })}
-                      className={errors.brand ? 'border-destructive' : ''}
+                      {...register("brand", {
+                        required: "La marca es requerida",
+                      })}
+                      className={errors.brand ? "border-destructive" : ""}
                     />
-                    {errors.brand && <p className="text-sm text-destructive">{errors.brand.message}</p>}
+                    {errors.brand && (
+                      <p className="text-sm text-destructive">
+                        {errors.brand.message}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -135,10 +174,16 @@ const InventoryForm = () => {
                     <Input
                       id="model"
                       placeholder="Ej: OptiPlex 7090"
-                      {...register('model', { required: 'El modelo es requerido' })}
-                      className={errors.model ? 'border-destructive' : ''}
+                      {...register("model", {
+                        required: "El modelo es requerido",
+                      })}
+                      className={errors.model ? "border-destructive" : ""}
                     />
-                    {errors.model && <p className="text-sm text-destructive">{errors.model.message}</p>}
+                    {errors.model && (
+                      <p className="text-sm text-destructive">
+                        {errors.model.message}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2 md:col-span-2">
@@ -146,10 +191,18 @@ const InventoryForm = () => {
                     <Input
                       id="serialNumber"
                       placeholder="Ej: SN123456789"
-                      {...register('serialNumber', { required: 'El número de serie es requerido' })}
-                      className={errors.serialNumber ? 'border-destructive' : ''}
+                      {...register("serialNumber", {
+                        required: "El número de serie es requerido",
+                      })}
+                      className={
+                        errors.serialNumber ? "border-destructive" : ""
+                      }
                     />
-                    {errors.serialNumber && <p className="text-sm text-destructive">{errors.serialNumber.message}</p>}
+                    {errors.serialNumber && (
+                      <p className="text-sm text-destructive">
+                        {errors.serialNumber.message}
+                      </p>
+                    )}
                   </div>
                 </div>
               </CardContent>
@@ -158,23 +211,37 @@ const InventoryForm = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Especificaciones Técnicas</CardTitle>
-                <CardDescription>Detalles técnicos del equipo (opcional)</CardDescription>
+                <CardDescription>
+                  Detalles técnicos del equipo (opcional)
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
                     <Label htmlFor="processor">Procesador</Label>
-                    <Input id="processor" placeholder="Ej: Intel i7" {...register('processor')} />
+                    <Input
+                      id="processor"
+                      placeholder="Ej: Intel i7"
+                      {...register("processor")}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="ram">Memoria RAM</Label>
-                    <Input id="ram" placeholder="Ej: 16GB DDR4" {...register('ram')} />
+                    <Input
+                      id="ram"
+                      placeholder="Ej: 16GB DDR4"
+                      {...register("ram")}
+                    />
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="storage">Almacenamiento</Label>
-                    <Input id="storage" placeholder="Ej: 512GB SSD" {...register('storage')} />
+                    <Input
+                      id="storage"
+                      placeholder="Ej: 512GB SSD"
+                      {...register("storage")}
+                    />
                   </div>
                 </div>
 
@@ -183,7 +250,7 @@ const InventoryForm = () => {
                   <Textarea
                     id="peripherals"
                     placeholder="Ej: Monitor Dell 24', Teclado Logitech, Mouse inalámbrico"
-                    {...register('peripherals')}
+                    {...register("peripherals")}
                     rows={3}
                   />
                 </div>
@@ -202,10 +269,16 @@ const InventoryForm = () => {
                   <Input
                     id="supplier"
                     placeholder="Nombre del proveedor"
-                    {...register('supplier', { required: 'El proveedor es requerido' })}
-                    className={errors.supplier ? 'border-destructive' : ''}
+                    {...register("supplier", {
+                      required: "El proveedor es requerido",
+                    })}
+                    className={errors.supplier ? "border-destructive" : ""}
                   />
-                  {errors.supplier && <p className="text-sm text-destructive">{errors.supplier.message}</p>}
+                  {errors.supplier && (
+                    <p className="text-sm text-destructive">
+                      {errors.supplier.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -213,21 +286,37 @@ const InventoryForm = () => {
                   <Input
                     id="purchaseDate"
                     type="date"
-                    {...register('purchaseDate', { required: 'La fecha es requerida' })}
-                    className={errors.purchaseDate ? 'border-destructive' : ''}
+                    {...register("purchaseDate", {
+                      required: "La fecha es requerida",
+                    })}
+                    className={errors.purchaseDate ? "border-destructive" : ""}
                   />
-                  {errors.purchaseDate && <p className="text-sm text-destructive">{errors.purchaseDate.message}</p>}
+                  {errors.purchaseDate && (
+                    <p className="text-sm text-destructive">
+                      {errors.purchaseDate.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="warrantyExpiration">Vencimiento de Garantía *</Label>
+                  <Label htmlFor="warrantyExpiration">
+                    Vencimiento de Garantía *
+                  </Label>
                   <Input
                     id="warrantyExpiration"
                     type="date"
-                    {...register('warrantyExpiration', { required: 'La fecha es requerida' })}
-                    className={errors.warrantyExpiration ? 'border-destructive' : ''}
+                    {...register("warrantyExpiration", {
+                      required: "La fecha es requerida",
+                    })}
+                    className={
+                      errors.warrantyExpiration ? "border-destructive" : ""
+                    }
                   />
-                  {errors.warrantyExpiration && <p className="text-sm text-destructive">{errors.warrantyExpiration.message}</p>}
+                  {errors.warrantyExpiration && (
+                    <p className="text-sm text-destructive">
+                      {errors.warrantyExpiration.message}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -242,10 +331,16 @@ const InventoryForm = () => {
                   <Input
                     id="location"
                     placeholder="Ej: Oficina Principal - Piso 2"
-                    {...register('location', { required: 'La ubicación es requerida' })}
-                    className={errors.location ? 'border-destructive' : ''}
+                    {...register("location", {
+                      required: "La ubicación es requerida",
+                    })}
+                    className={errors.location ? "border-destructive" : ""}
                   />
-                  {errors.location && <p className="text-sm text-destructive">{errors.location.message}</p>}
+                  {errors.location && (
+                    <p className="text-sm text-destructive">
+                      {errors.location.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -253,38 +348,64 @@ const InventoryForm = () => {
                   <Input
                     id="assignedUser"
                     placeholder="Nombre del usuario"
-                    {...register('assignedUser', { required: 'El usuario es requerido' })}
-                    className={errors.assignedUser ? 'border-destructive' : ''}
+                    {...register("assignedUser", {
+                      required: "El usuario es requerido",
+                    })}
+                    className={errors.assignedUser ? "border-destructive" : ""}
                   />
-                  {errors.assignedUser && <p className="text-sm text-destructive">{errors.assignedUser.message}</p>}
+                  {errors.assignedUser && (
+                    <p className="text-sm text-destructive">
+                      {errors.assignedUser.message}
+                    </p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="status">Estado *</Label>
-                  <Select
-                    onValueChange={(value) => setValue('status', value as Equipment['status'])}
-                    defaultValue={watch('status') || 'active'}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecciona un estado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Activo</SelectItem>
-                      <SelectItem value="maintenance">Mantenimiento</SelectItem>
-                      <SelectItem value="inactive">Inactivo</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                    name="status"
+                    control={control}
+                    rules={{ required: "El estado es requerido" }}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona un estado" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Activo</SelectItem>
+                          <SelectItem value="maintenance">
+                            Mantenimiento
+                          </SelectItem>
+                          <SelectItem value="inactive">Inactivo</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+
+                  {errors.status && (
+                    <p className="text-sm text-destructive">
+                      {errors.status.message}
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
 
             <div className="flex gap-3">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => navigate('/inventory')}>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => navigate("/inventory")}
+              >
                 Cancelar
               </Button>
               <Button type="submit" className="flex-1">
                 <Save className="mr-2 h-4 w-4" />
-                {isEdit ? 'Guardar Cambios' : 'Registrar'}
+                {isEdit ? "Guardar Cambios" : "Registrar"}
               </Button>
             </div>
           </div>

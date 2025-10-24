@@ -9,16 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const Dashboard = () => {
 
-  interface Stadistics {
-    total: number,
-    active: number,
-    maintenance: number,
-    inactive: number,
-    recentChanges: number, 
-  }
-
   const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [stats, setStats] = useState<Stadistics>({
+  const [stats, setStats] = useState({
     total: 0,
     active: 0,
     maintenance: 0,

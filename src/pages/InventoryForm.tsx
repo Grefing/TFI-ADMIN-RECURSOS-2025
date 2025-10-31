@@ -31,6 +31,9 @@ const InventoryForm = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isEdit, setIsEdit] = useState(false);
+const [incidents, setIncidents] = useState<boolean>(false);
+const params = useParams();
+
 
   const {
     register,
@@ -41,7 +44,7 @@ const InventoryForm = () => {
     control,
   } = useForm<Equipment>();
   const watchType = watch("type");
-
+  
   useEffect(() => {
     if (id) {
       setIsEdit(true);
@@ -50,6 +53,9 @@ const InventoryForm = () => {
         Object.keys(equipment).forEach((key) => {
           setValue(key as keyof Equipment, equipment[key as keyof Equipment]);
         });
+        // Configurar si se muestran los incidentes basado en el estado
+        const hasIncidents = equipment.status === "maintenance" || equipment.status === "inactive";
+        setIncidents(hasIncidents);
       }
     }
   }, [id, setValue]);
@@ -369,28 +375,58 @@ const InventoryForm = () => {
                     render={({ field }) => (
                       <Select
                         value={field.value}
-                        onValueChange={field.onChange}
+                        onValueChange={(value) => {
+                          field.onChange(value);
+                          const hasIncidents = value === "maintenance" || value === "inactive";
+                          setIncidents(hasIncidents);
+                          if (value === "active") {
+                            setValue("incidentDescription", "");
+                          }
+                        }}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecciona un estado" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="active">Activo</SelectItem>
-                          <SelectItem value="maintenance">
-                            Mantenimiento
-                          </SelectItem>
-                          <SelectItem value="inactive">Inactivo</SelectItem>
+                          {
+                            params.id && (<>
+                            <SelectItem value="maintenance">
+                              Mantenimiento
+                            </SelectItem>
+                            <SelectItem value="inactive">Inactivo</SelectItem>
+                            </>) 
+                          }
                         </SelectContent>
                       </Select>
                     )}
                   />
-
                   {errors.status && (
                     <p className="text-sm text-destructive">
                       {errors.status.message}
                     </p>
                   )}
                 </div>
+
+                {incidents && (
+                  <div className="space-y-2">
+                    <Label htmlFor="incidentDescription">Descripción del Incidente *</Label>
+                    <Textarea 
+                      id="incidentDescription" 
+                      placeholder="Detalla el incidente ocurrido" 
+                      {...register("incidentDescription", { 
+                        required: incidents ? "La descripción del incidente es requerida" : false
+                      })} 
+                      rows={3}
+                      className={errors.incidentDescription ? "border-destructive" : ""}
+                    />
+                    {errors.incidentDescription && (
+                      <p className="text-sm text-destructive">
+                        {errors.incidentDescription.message}
+                      </p>
+                    )}
+                  </div>
+                )}
               </CardContent>
             </Card>
 

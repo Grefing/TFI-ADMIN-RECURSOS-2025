@@ -81,7 +81,7 @@ export function AppSidebar() {
         )}
         <Button
           variant="ghost"
-          className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
+          className="w-full justify-center text-sidebar-foreground hover:bg-sidebar-accent"
           onClick={logout}
         >
           <LogOut className="mr-2 h-4 w-4" />

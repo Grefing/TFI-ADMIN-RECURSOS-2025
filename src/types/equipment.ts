@@ -23,6 +23,7 @@ export interface Equipment {
   
   // Estado
   status: 'active' | 'maintenance' | 'inactive';
+  incidentDescription?: string;
   
   // Metadata
   createdAt: string;

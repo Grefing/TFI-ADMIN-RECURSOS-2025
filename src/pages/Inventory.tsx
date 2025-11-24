@@ -12,10 +12,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Package, Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { getEquipment, deleteEquipment } from '@/utils/storage';
-import { Equipment } from '@/types/equipment';
+import { getAllEquipment, deleteEquipment as deleteEquipmentApi, getEquipmentById, createHistoryEntry } from '@/helpers';
+import { EquipmentResponse } from '@/helpers/equipment.helpers';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,9 +30,10 @@ import {
 } from '@/components/ui/alert-dialog';
 
 const Inventory = () => {
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
-  const [filteredEquipment, setFilteredEquipment] = useState<Equipment[]>([]);
+  const [equipment, setEquipment] = useState<EquipmentResponse[]>([]);
+  const [filteredEquipment, setFilteredEquipment] = useState<EquipmentResponse[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -41,27 +43,70 @@ const Inventory = () => {
 
   useEffect(() => {
     const filtered = equipment.filter(item =>
-      item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.serialNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.assignedUser.toLowerCase().includes(searchTerm.toLowerCase())
+      item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.brand?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.serial_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.assigned_user?.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredEquipment(filtered);
   }, [searchTerm, equipment]);
 
-  const loadEquipment = () => {
-    const data = getEquipment();
-    setEquipment(data);
-    setFilteredEquipment(data);
+  const loadEquipment = async () => {
+    try {
+      setLoading(true);
+      const data = await getAllEquipment();
+      setEquipment(data);
+      setFilteredEquipment(data);
+    } catch (error) {
+      console.error('Error cargando equipos:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron cargar los equipos. Por favor, intenta nuevamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    if (user) {
-      deleteEquipment(id, user.username);
-      loadEquipment();
+  const handleDelete = async (id: string | number) => {
+    try {
+      // Obtener información del equipo antes de eliminarlo para el historial
+      let equipmentName = 'Equipo';
+      try {
+        const equipment = await getEquipmentById(id);
+        equipmentName = equipment.name;
+      } catch (error) {
+        console.error('Error obteniendo equipo para historial:', error);
+      }
+      
+      await deleteEquipmentApi(id);
+      
+      // Crear entrada de historial
+      try {
+        const historyResult = await createHistoryEntry({
+          equipment_id: id,
+          action: 'delete',
+          changes: `Equipo eliminado: ${equipmentName}`,
+          user_name: user?.full_name || user?.email || 'Usuario',
+        });
+        console.log('Historial de eliminación creado:', historyResult);
+      } catch (historyError) {
+        console.error('Error creando historial:', historyError);
+        // No fallar la operación si el historial falla
+      }
+      
       toast({
         title: "Equipo eliminado",
         description: "El equipo ha sido eliminado correctamente.",
+      });
+      loadEquipment();
+    } catch (error) {
+      console.error('Error eliminando equipo:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo eliminar el equipo. Por favor, intenta nuevamente.",
+        variant: "destructive",
       });
     }
   };
@@ -98,7 +143,13 @@ const Inventory = () => {
           </div>
         </CardHeader>
         <CardContent>
-          {filteredEquipment.length === 0 ? (
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : filteredEquipment.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Package className="mb-4 h-16 w-16 text-muted-foreground/50" />
               <h3 className="mb-2 text-lg font-semibold">No hay equipos</h3>
@@ -141,9 +192,9 @@ const Inventory = () => {
                          'Otro'}
                       </TableCell>
                       <TableCell>{item.brand} {item.model}</TableCell>
-                      <TableCell className="font-mono text-sm">{item.serialNumber}</TableCell>
-                      <TableCell>{item.assignedUser}</TableCell>
-                      <TableCell>{item.location}</TableCell>
+                      <TableCell className="font-mono text-sm">{item.serial_number}</TableCell>
+                      <TableCell>{item.assigned_user}</TableCell>
+                      <TableCell>{item.Location?.name || item.location_id}</TableCell>
                       <TableCell>
                         <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
                           item.status === 'active' ? 'bg-success/10 text-success' :

@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, Server, AlertTriangle, CheckCircle, TrendingUp } from 'lucide-react';
-import { getEquipment, getHistory } from '@/utils/storage';
-import { Equipment } from '@/types/equipment';
+import { getAllEquipment, getAllHistory } from '@/helpers';
+import { EquipmentResponse } from '@/helpers/equipment.helpers';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const Dashboard = () => {
-
-  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [equipment, setEquipment] = useState<EquipmentResponse[]>([]);
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -19,18 +19,47 @@ const Dashboard = () => {
   });
 
   useEffect(() => {
-    const data = getEquipment();
-    const history = getHistory();
-    
-    setEquipment(data);
-    setStats({
-      total: data.length,
-      active: data.filter(e => e.status === 'active').length,
-      maintenance: data.filter(e => e.status === 'maintenance').length,
-      inactive: data.filter(e => e.status === 'inactive').length,
-      recentChanges: history.length,
-    });
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [equipmentData, historyData] = await Promise.all([
+        getAllEquipment().catch(err => {
+          console.error('Error cargando equipos:', err);
+          return [];
+        }),
+        getAllHistory().catch(err => {
+          console.error('Error cargando historial:', err);
+          return [];
+        })
+      ]);
+      
+      console.log('Datos cargados - Equipos:', equipmentData.length, 'Historial:', historyData.length);
+      
+      setEquipment(Array.isArray(equipmentData) ? equipmentData : []);
+      setStats({
+        total: Array.isArray(equipmentData) ? equipmentData.length : 0,
+        active: Array.isArray(equipmentData) ? equipmentData.filter(e => e.status === 'active').length : 0,
+        maintenance: Array.isArray(equipmentData) ? equipmentData.filter(e => e.status === 'maintenance').length : 0,
+        inactive: Array.isArray(equipmentData) ? equipmentData.filter(e => e.status === 'inactive').length : 0,
+        recentChanges: Array.isArray(historyData) ? historyData.length : 0,
+      });
+    } catch (error) {
+      console.error('Error cargando datos:', error);
+      setEquipment([]);
+      setStats({
+        total: 0,
+        active: 0,
+        maintenance: 0,
+        inactive: 0,
+        recentChanges: 0,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const statCards = [
     {
@@ -107,7 +136,13 @@ const Dashboard = () => {
             <CardDescription>Últimos equipos agregados al inventario</CardDescription>
           </CardHeader>
           <CardContent>
-            {equipment.length === 0 ? (
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-16 w-full" />
+                ))}
+              </div>
+            ) : equipment.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Server className="mb-4 h-12 w-12 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">No hay equipos registrados</p>
@@ -152,7 +187,13 @@ const Dashboard = () => {
             <CardDescription>Categorías de equipos en el inventario</CardDescription>
           </CardHeader>
           <CardContent>
-            {equipment.length === 0 ? (
+            {loading ? (
+              <div className="space-y-3">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : equipment.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-8 text-center">
                 <Package className="mb-4 h-12 w-12 text-muted-foreground/50" />
                 <p className="text-sm text-muted-foreground">Sin datos para mostrar</p>

@@ -10,7 +10,7 @@ import { Package, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface LoginForm {
-  username: string;
+  email: string;
   password: string;
 }
 
@@ -18,6 +18,7 @@ const Auth = () => {
   const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>();
 
   useEffect(() => {
@@ -26,14 +27,22 @@ const Auth = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  const onSubmit = (data: LoginForm) => {
+  const onSubmit = async (data: LoginForm) => {
     setError('');
-    const success = login(data.username, data.password);
+    setIsLoading(true);
     
-    if (success) {
-      navigate('/', { replace: true });
-    } else {
-      setError('Usuario o contraseña incorrectos');
+    try {
+      const success = await login(data.email, data.password);
+      
+      if (success) {
+        navigate('/', { replace: true });
+      } else {
+        setError('Email o contraseña incorrectos');
+      }
+    } catch (err) {
+      setError('Error al conectar con el servidor. Por favor, intenta nuevamente.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -52,19 +61,22 @@ const Auth = () => {
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Usuario</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Ingresa tu usuario"
-                {...register('username', { 
-                  required: 'El usuario es requerido',
-                  minLength: { value: 3, message: 'Mínimo 3 caracteres' }
+                id="email"
+                type="email"
+                placeholder="Ingresa tu email"
+                {...register('email', { 
+                  required: 'El email es requerido',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'Email inválido'
+                  }
                 })}
-                className={errors.username ? 'border-destructive' : ''}
+                className={errors.email ? 'border-destructive' : ''}
               />
-              {errors.username && (
-                <p className="text-sm text-destructive">{errors.username.message}</p>
+              {errors.email && (
+                <p className="text-sm text-destructive">{errors.email.message}</p>
               )}
             </div>
 
@@ -92,15 +104,9 @@ const Auth = () => {
               </Alert>
             )}
 
-            <Button type="submit" className="w-full">
-              Iniciar Sesión
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
             </Button>
-
-            <div className="rounded-lg bg-muted p-3 text-sm">
-              <p className="font-semibold text-muted-foreground">Credenciales de prueba:</p>
-              <p className="text-muted-foreground">Usuario: <span className="font-mono">admin</span></p>
-              <p className="text-muted-foreground">Contraseña: <span className="font-mono">admin123</span></p>
-            </div>
           </form>
         </CardContent>
       </Card>

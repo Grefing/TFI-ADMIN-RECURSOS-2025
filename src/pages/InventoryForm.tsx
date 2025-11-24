@@ -21,7 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import { Equipment } from "@/types/equipment";
-import { addEquipment, updateEquipment, getEquipment } from "@/utils/storage";
+import { createEquipment, updateEquipment as updateEquipmentApi, getEquipmentById, CreateEquipmentDto, getAllSuppliers, getAllLocations, Supplier, Location, EquipmentResponse, createHistoryEntry } from "@/helpers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -31,8 +31,12 @@ const InventoryForm = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [isEdit, setIsEdit] = useState(false);
-const [incidents, setIncidents] = useState<boolean>(false);
-const params = useParams();
+  const [incidents, setIncidents] = useState<boolean>(false);
+  const [loading, setLoading] = useState(false);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [equipmentData, setEquipmentData] = useState<EquipmentResponse | null>(null);
+  const params = useParams();
 
 
   const {
@@ -46,46 +50,254 @@ const params = useParams();
   const watchType = watch("type");
   
   useEffect(() => {
-    if (id) {
-      setIsEdit(true);
-      const equipment = getEquipment().find((e) => e.id === id);
-      if (equipment) {
-        Object.keys(equipment).forEach((key) => {
-          setValue(key as keyof Equipment, equipment[key as keyof Equipment]);
-        });
-        // Configurar si se muestran los incidentes basado en el estado
-        const hasIncidents = equipment.status === "maintenance" || equipment.status === "inactive";
-        setIncidents(hasIncidents);
+    const initialize = async () => {
+      await loadSuppliersAndLocations();
+      if (id) {
+        setIsEdit(true);
+        loadEquipment(id);
+      }
+    };
+    initialize();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  // Efecto para establecer supplier y location cuando se carguen los datos
+  useEffect(() => {
+    if (equipmentData && suppliers.length > 0 && locations.length > 0) {
+      // Usar el ID del supplier
+      let supplierId = "";
+      if (equipmentData.supplier_id) {
+        supplierId = String(equipmentData.supplier_id);
+      } else if (equipmentData.Supplier?.id) {
+        supplierId = String(equipmentData.Supplier.id);
+      }
+      if (supplierId) {
+        setValue("supplier", supplierId);
+      }
+
+      // Usar el ID de la location
+      let locationId = "";
+      if (equipmentData.location_id) {
+        locationId = String(equipmentData.location_id);
+      } else if (equipmentData.Location?.id) {
+        locationId = String(equipmentData.Location.id);
+      }
+      if (locationId) {
+        setValue("location", locationId);
       }
     }
-  }, [id, setValue]);
+  }, [equipmentData, suppliers, locations, setValue]);
 
-  const onSubmit = (data: Equipment) => {
+  const loadSuppliersAndLocations = async () => {
+    try {
+      const [suppliersData, locationsData] = await Promise.all([
+        getAllSuppliers(),
+        getAllLocations()
+      ]);
+      setSuppliers(suppliersData);
+      setLocations(locationsData);
+    } catch (error) {
+      console.error('Error cargando suppliers y locations:', error);
+    }
+  };
+
+  const generateChangesSummary = (oldEquipment: EquipmentResponse, newEquipment: CreateEquipmentDto): string => {
+    const changes: string[] = [];
+    
+    if (oldEquipment.name !== newEquipment.name) {
+      changes.push(`Nombre: ${oldEquipment.name} → ${newEquipment.name}`);
+    }
+    if (oldEquipment.type !== newEquipment.type) {
+      changes.push(`Tipo: ${oldEquipment.type} → ${newEquipment.type}`);
+    }
+    if (oldEquipment.brand !== newEquipment.brand) {
+      changes.push(`Marca: ${oldEquipment.brand} → ${newEquipment.brand}`);
+    }
+    if (oldEquipment.model !== newEquipment.model) {
+      changes.push(`Modelo: ${oldEquipment.model} → ${newEquipment.model}`);
+    }
+    if (oldEquipment.serial_number !== newEquipment.serial_number) {
+      changes.push(`Serial: ${oldEquipment.serial_number} → ${newEquipment.serial_number}`);
+    }
+    if (oldEquipment.status !== newEquipment.status) {
+      changes.push(`Estado: ${oldEquipment.status} → ${newEquipment.status}`);
+    }
+    if (oldEquipment.assigned_user !== newEquipment.assigned_user) {
+      changes.push(`Usuario: ${oldEquipment.assigned_user} → ${newEquipment.assigned_user}`);
+    }
+    if (String(oldEquipment.supplier_id) !== String(newEquipment.supplier_id)) {
+      changes.push(`Proveedor actualizado`);
+    }
+    if (String(oldEquipment.location_id) !== String(newEquipment.location_id)) {
+      changes.push(`Ubicación actualizada`);
+    }
+    
+    return changes.length > 0 ? changes.join(', ') : 'Actualización de datos del equipo';
+  };
+
+  const loadEquipment = async (equipmentId: string) => {
+    try {
+      setLoading(true);
+      const equipment = await getEquipmentById(equipmentId);
+      
+      // Guardar los datos del equipo para usarlos cuando se carguen suppliers y locations
+      setEquipmentData(equipment);
+      
+      // Mapear datos del backend al formulario
+      setValue("name", equipment.name);
+      setValue("type", equipment.type as Equipment["type"]);
+      setValue("brand", equipment.brand);
+      setValue("model", equipment.model);
+      setValue("serialNumber", equipment.serial_number);
+      setValue("processor", equipment.processor || "");
+      setValue("ram", equipment.ram || "");
+      setValue("storage", equipment.storage || "");
+      
+      // Manejar periféricos - convertir array a string separado por comas
+      let peripheralsValue = "";
+      if (equipment.peripherals) {
+        if (Array.isArray(equipment.peripherals)) {
+          peripheralsValue = equipment.peripherals.join(", ");
+        } else if (typeof equipment.peripherals === 'string') {
+          // Si es un string que parece JSON, intentar parsearlo
+          try {
+            const parsed = JSON.parse(equipment.peripherals);
+            if (Array.isArray(parsed)) {
+              peripheralsValue = parsed.join(", ");
+            } else {
+              peripheralsValue = equipment.peripherals;
+            }
+          } catch {
+            peripheralsValue = equipment.peripherals;
+          }
+        }
+      }
+      // Usar setValue con el valor como string, pero el tipo del formulario espera string[]
+      setValue("peripherals", peripheralsValue as unknown as string[]);
+      
+      setValue("purchaseDate", equipment.purchase_date ? new Date(equipment.purchase_date).toISOString().split('T')[0] : "");
+      setValue("warrantyExpiration", equipment.warranty_expiration ? new Date(equipment.warranty_expiration).toISOString().split('T')[0] : "");
+      
+      setValue("assignedUser", equipment.assigned_user || "");
+      setValue("status", (equipment.status || 'active') as Equipment["status"]);
+      setValue("incidentDescription", equipment.incident_description || "");
+      
+      const hasIncidents = equipment.status === "maintenance" || equipment.status === "inactive";
+      setIncidents(hasIncidents);
+    } catch (error) {
+      console.error('Error cargando equipo:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo cargar el equipo. Por favor, intenta nuevamente.",
+        variant: "destructive",
+      });
+      navigate("/inventory");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const onSubmit = async (data: Equipment) => {
     if (!user) return;
 
-    const equipmentData: Equipment = {
-      ...data,
-      id: id || crypto.randomUUID(),
-      peripherals: data.peripherals || [],
-      updatedAt: new Date().toISOString(),
-      createdAt: isEdit ? data.createdAt : new Date().toISOString(),
-    };
+    try {
+      setLoading(true);
+      
+      // Mapear datos del formulario a la estructura del backend
+      const equipmentData: CreateEquipmentDto = {
+        name: data.name,
+        type: data.type,
+        brand: data.brand,
+        model: data.model,
+        serial_number: data.serialNumber,
+        processor: data.processor,
+        ram: data.ram,
+        storage: data.storage,
+        peripherals: (() => {
+          const periph = data.peripherals as string[] | string | undefined;
+          if (typeof periph === 'string') {
+            return periph.split(',').map(p => p.trim()).filter(p => p);
+          }
+          if (Array.isArray(periph)) {
+            return periph;
+          }
+          return [];
+        })(),
+        supplier_id: data.supplier ? String(data.supplier) : undefined,
+        purchase_date: data.purchaseDate ? new Date(data.purchaseDate).toISOString() : undefined,
+        warranty_expiration: data.warrantyExpiration ? new Date(data.warrantyExpiration).toISOString() : undefined,
+        location_id: data.location ? String(data.location) : undefined,
+        assigned_user: data.assignedUser,
+        status: data.status,
+        created_by: user.id,
+      };
 
-    if (isEdit) {
-      updateEquipment(equipmentData.id, equipmentData, user.username);
+      if (isEdit && id) {
+        // Obtener el equipo anterior para comparar cambios
+        const oldEquipment = await getEquipmentById(id);
+        
+        await updateEquipmentApi(id, equipmentData);
+        
+        // Crear entrada de historial
+        try {
+          const changes = generateChangesSummary(oldEquipment, equipmentData);
+          const historyResult = await createHistoryEntry({
+            equipment_id: id,
+            action: 'update',
+            changes: changes,
+            user_name: user.full_name || user.email,
+          });
+          console.log('Historial de actualización creado:', historyResult);
+        } catch (historyError) {
+          console.error('Error creando historial:', historyError);
+          // No fallar la operación si el historial falla
+        }
+        
+        toast({
+          title: "Equipo actualizado",
+          description: "Los cambios han sido guardados correctamente.",
+        });
+      } else {
+        const response = await createEquipment(equipmentData);
+        // El backend devuelve { message, data: { id, ... } }
+        const newEquipmentId = response.data?.id;
+        
+        if (newEquipmentId) {
+          // Crear entrada de historial
+          try {
+            const historyResult = await createHistoryEntry({
+              equipment_id: newEquipmentId,
+              action: 'create',
+              changes: `Equipo creado: ${equipmentData.name} (${equipmentData.type})`,
+              user_name: user.full_name || user.email,
+            });
+            console.log('Historial de creación creado:', historyResult);
+          } catch (historyError) {
+            console.error('Error creando historial:', historyError);
+            // No fallar la operación si el historial falla
+          }
+        } else {
+          console.warn('No se pudo obtener el ID del equipo creado para el historial');
+        }
+        
+        toast({
+          title: "Equipo agregado",
+          description: "El equipo ha sido registrado correctamente.",
+        });
+      }
+
+      navigate("/inventory");
+    } catch (error: unknown) {
+      console.error('Error guardando equipo:', error);
+      const errorMessage = error instanceof Error ? error.message : "No se pudo guardar el equipo. Por favor, intenta nuevamente.";
       toast({
-        title: "Equipo actualizado",
-        description: "Los cambios han sido guardados correctamente.",
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
       });
-    } else {
-      addEquipment(equipmentData, user.username);
-      toast({
-        title: "Equipo agregado",
-        description: "El equipo ha sido registrado correctamente.",
-      });
+    } finally {
+      setLoading(false);
     }
-
-    navigate("/inventory");
   };
 
   return (
@@ -253,11 +465,18 @@ const params = useParams();
 
                 <div className="space-y-2">
                   <Label htmlFor="peripherals">Periféricos</Label>
-                  <Textarea
-                    id="peripherals"
-                    placeholder="Ej: Monitor Dell 24', Teclado Logitech, Mouse inalámbrico"
-                    {...register("peripherals")}
-                    rows={3}
+                  <Controller
+                    name="peripherals"
+                    control={control}
+                    render={({ field }) => (
+                      <Textarea
+                        id="peripherals"
+                        placeholder="Ej: Monitor Dell 24', Teclado Logitech, Mouse inalámbrico"
+                        value={Array.isArray(field.value) ? field.value.join(", ") : (field.value || "")}
+                        onChange={(e) => field.onChange(e.target.value)}
+                        rows={3}
+                      />
+                    )}
                   />
                 </div>
               </CardContent>
@@ -272,13 +491,27 @@ const params = useParams();
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="supplier">Proveedor *</Label>
-                  <Input
-                    id="supplier"
-                    placeholder="Nombre del proveedor"
-                    {...register("supplier", {
-                      required: "El proveedor es requerido",
-                    })}
-                    className={errors.supplier ? "border-destructive" : ""}
+                  <Controller
+                    name="supplier"
+                    control={control}
+                    rules={{ required: "El proveedor es requerido" }}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona un proveedor" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {suppliers.map((supplier) => (
+                            <SelectItem key={supplier.id} value={String(supplier.id)}>
+                              {supplier.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   />
                   {errors.supplier && (
                     <p className="text-sm text-destructive">
@@ -334,13 +567,27 @@ const params = useParams();
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="location">Ubicación *</Label>
-                  <Input
-                    id="location"
-                    placeholder="Ej: Oficina Principal - Piso 2"
-                    {...register("location", {
-                      required: "La ubicación es requerida",
-                    })}
-                    className={errors.location ? "border-destructive" : ""}
+                  <Controller
+                    name="location"
+                    control={control}
+                    rules={{ required: "La ubicación es requerida" }}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecciona una ubicación" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {locations.map((location) => (
+                            <SelectItem key={location.id} value={String(location.id)}>
+                              {location.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   />
                   {errors.location && (
                     <p className="text-sm text-destructive">
@@ -408,7 +655,7 @@ const params = useParams();
                   )}
                 </div>
 
-                {incidents && (
+                {/* {incidents && (
                   <div className="space-y-2">
                     <Label htmlFor="incidentDescription">Descripción del Incidente *</Label>
                     <Textarea 
@@ -426,7 +673,7 @@ const params = useParams();
                       </p>
                     )}
                   </div>
-                )}
+                )} */}
               </CardContent>
             </Card>
 
@@ -439,9 +686,9 @@ const params = useParams();
               >
                 Cancelar
               </Button>
-              <Button type="submit" className="flex-1">
+              <Button type="submit" className="flex-1" disabled={loading}>
                 <Save className="mr-2 h-4 w-4" />
-                {isEdit ? "Guardar Cambios" : "Registrar"}
+                {loading ? "Guardando..." : isEdit ? "Guardar Cambios" : "Registrar"}
               </Button>
             </div>
           </div>

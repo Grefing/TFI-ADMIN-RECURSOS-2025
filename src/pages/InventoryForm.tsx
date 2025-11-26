@@ -21,7 +21,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save } from "lucide-react";
 import { Equipment } from "@/types/equipment";
-import { createEquipment, updateEquipment as updateEquipmentApi, getEquipmentById, CreateEquipmentDto, getAllSuppliers, getAllLocations, Supplier, Location, EquipmentResponse, createHistoryEntry } from "@/helpers";
+import { createEquipment, updateEquipment as updateEquipmentApi, getEquipmentById, CreateEquipmentDto, getAllSuppliers, getAllLocations, Supplier, Location, EquipmentResponse } from "@/helpers";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -233,52 +233,16 @@ const InventoryForm = () => {
       };
 
       if (isEdit && id) {
-        // Obtener el equipo anterior para comparar cambios
-        const oldEquipment = await getEquipmentById(id);
-        
         await updateEquipmentApi(id, equipmentData);
-        
-        // Crear entrada de historial
-        try {
-          const changes = generateChangesSummary(oldEquipment, equipmentData);
-          const historyResult = await createHistoryEntry({
-            equipment_id: id,
-            action: 'update',
-            changes: changes,
-            user_name: user.full_name || user.email,
-          });
-          console.log('Historial de actualización creado:', historyResult);
-        } catch (historyError) {
-          console.error('Error creando historial:', historyError);
-          // No fallar la operación si el historial falla
-        }
+        // El backend ya crea automáticamente la entrada en el historial
         
         toast({
           title: "Equipo actualizado",
           description: "Los cambios han sido guardados correctamente.",
         });
       } else {
-        const response = await createEquipment(equipmentData);
-        // El backend devuelve { message, data: { id, ... } }
-        const newEquipmentId = response.data?.id;
-        
-        if (newEquipmentId) {
-          // Crear entrada de historial
-          try {
-            const historyResult = await createHistoryEntry({
-              equipment_id: newEquipmentId,
-              action: 'create',
-              changes: `Equipo creado: ${equipmentData.name} (${equipmentData.type})`,
-              user_name: user.full_name || user.email,
-            });
-            console.log('Historial de creación creado:', historyResult);
-          } catch (historyError) {
-            console.error('Error creando historial:', historyError);
-            // No fallar la operación si el historial falla
-          }
-        } else {
-          console.warn('No se pudo obtener el ID del equipo creado para el historial');
-        }
+        await createEquipment(equipmentData);
+        // El backend ya crea automáticamente la entrada en el historial
         
         toast({
           title: "Equipo agregado",

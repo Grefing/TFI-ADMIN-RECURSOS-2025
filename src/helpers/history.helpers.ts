@@ -5,6 +5,8 @@ import { HistoryEntry } from '@/types/equipment';
 export interface HistoryResponse {
   id: string | number;
   equipment_id: string | number;
+  equipment_name?: string; // Nombre del equipo guardado en el historial
+  equipment_serial?: string; // Serial del equipo guardado en el historial
   user_name?: string;
   action: string;
   changes?: string;
@@ -14,7 +16,7 @@ export interface HistoryResponse {
   Equipment?: {
     name: string;
     serial_number: string;
-  };
+  } | null; // Puede ser null si el equipo fue eliminado
   Profile?: {
     full_name: string;
   };

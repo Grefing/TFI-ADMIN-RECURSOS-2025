@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Package, Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { getAllEquipment, deleteEquipment as deleteEquipmentApi, getEquipmentById, createHistoryEntry } from '@/helpers';
+import { getAllEquipment, deleteEquipment as deleteEquipmentApi } from '@/helpers';
 import { EquipmentResponse } from '@/helpers/equipment.helpers';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -72,29 +72,8 @@ const Inventory = () => {
   const handleDelete = async (id: string | number) => {
     try {
       // Obtener información del equipo antes de eliminarlo para el historial
-      let equipmentName = 'Equipo';
-      try {
-        const equipment = await getEquipmentById(id);
-        equipmentName = equipment.name;
-      } catch (error) {
-        console.error('Error obteniendo equipo para historial:', error);
-      }
-      
       await deleteEquipmentApi(id);
-      
-      // Crear entrada de historial
-      try {
-        const historyResult = await createHistoryEntry({
-          equipment_id: id,
-          action: 'delete',
-          changes: `Equipo eliminado: ${equipmentName}`,
-          user_name: user?.full_name || user?.email || 'Usuario',
-        });
-        console.log('Historial de eliminación creado:', historyResult);
-      } catch (historyError) {
-        console.error('Error creando historial:', historyError);
-        // No fallar la operación si el historial falla
-      }
+      // El backend ya crea automáticamente la entrada en el historial
       
       toast({
         title: "Equipo eliminado",

@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import InventoryForm from "./pages/InventoryForm";
 import History from "./pages/History";
+import Incidents from "./pages/Incidents";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const App = () => (
               <Route path="inventory/add" element={<InventoryForm />} />
               <Route path="inventory/edit/:id" element={<InventoryForm />} />
               <Route path="history" element={<History />} />
+              <Route path="incident" element={<Incidents />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

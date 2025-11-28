@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, History, LogOut, ChevronLeft } from "lucide-react";
+import { LayoutDashboard, Package, History, AlertTriangle, LogOut, ChevronLeft } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import {
   Sidebar,
@@ -20,6 +20,7 @@ const menuItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Inventario", url: "/inventory", icon: Package },
   { title: "Historial", url: "/history", icon: History },
+  { title: "Incidentes", url: "/incident", icon: AlertTriangle },
 ];
 
 export function AppSidebar() {

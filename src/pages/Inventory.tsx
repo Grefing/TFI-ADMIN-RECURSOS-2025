@@ -11,8 +11,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Package, Plus, Search, Edit, Trash2 } from 'lucide-react';
-import { getAllEquipment, deleteEquipment as deleteEquipmentApi } from '@/helpers';
+import { Package, Plus, Search, Edit, Trash2, AlertTriangle } from 'lucide-react';
+import { getAllEquipment, deleteEquipment as deleteEquipmentApi, createIncident } from '@/helpers';
 import { EquipmentResponse } from '@/helpers/equipment.helpers';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -28,12 +28,35 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const Inventory = () => {
   const [equipment, setEquipment] = useState<EquipmentResponse[]>([]);
   const [filteredEquipment, setFilteredEquipment] = useState<EquipmentResponse[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [incidentDialogOpen, setIncidentDialogOpen] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentResponse | null>(null);
+  const [incidentImportance, setIncidentImportance] = useState<'critical' | 'high' | 'medium' | 'low'>('medium');
+  const [incidentDescription, setIncidentDescription] = useState('');
+  const [submittingIncident, setSubmittingIncident] = useState(false);
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -88,6 +111,80 @@ const Inventory = () => {
         variant: "destructive",
       });
     }
+  };
+
+  const handleOpenIncidentDialog = (equipment: EquipmentResponse) => {
+    setSelectedEquipment(equipment);
+    setIncidentImportance('medium');
+    setIncidentDescription('');
+    setIncidentDialogOpen(true);
+  };
+
+  const handleSubmitIncident = async () => {
+    if (!selectedEquipment || !incidentDescription.trim()) {
+      toast({
+        title: "Error",
+        description: "Por favor, completa la descripción del incidente.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setSubmittingIncident(true);
+      await createIncident({
+        equipment_id: selectedEquipment.id,
+        importance: incidentImportance,
+        description: incidentDescription.trim(),
+      });
+
+      toast({
+        title: "Incidente registrado",
+        description: "El incidente ha sido registrado correctamente.",
+      });
+
+      setIncidentDialogOpen(false);
+      setSelectedEquipment(null);
+      setIncidentDescription('');
+      setIncidentImportance('medium');
+    } catch (error) {
+      console.error('Error registrando incidente:', error);
+      toast({
+        title: "Error",
+        description: "No se pudo registrar el incidente. Por favor, intenta nuevamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setSubmittingIncident(false);
+    }
+  };
+
+  // Función para verificar si la garantía está vencida
+  const isWarrantyExpired = (warrantyExpiration: string | undefined): boolean => {
+    if (!warrantyExpiration) return false;
+    const expirationDate = new Date(warrantyExpiration);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    expirationDate.setHours(0, 0, 0, 0);
+    return expirationDate < today;
+  };
+
+  // Función para verificar si la garantía está por vencer (3 meses antes)
+  const isWarrantyExpiringSoon = (warrantyExpiration: string | undefined): boolean => {
+    if (!warrantyExpiration) return false;
+    if (isWarrantyExpired(warrantyExpiration)) return false; // Si ya está vencida, no mostrar como "por vencer"
+    
+    const expirationDate = new Date(warrantyExpiration);
+    const today = new Date();
+    const threeMonthsFromNow = new Date();
+    threeMonthsFromNow.setMonth(today.getMonth() + 3);
+    
+    today.setHours(0, 0, 0, 0);
+    expirationDate.setHours(0, 0, 0, 0);
+    threeMonthsFromNow.setHours(0, 0, 0, 0);
+    
+    // Está por vencer si la fecha de vencimiento está entre hoy y 3 meses desde hoy
+    return expirationDate >= today && expirationDate <= threeMonthsFromNow;
   };
 
   return (
@@ -160,9 +257,40 @@ const Inventory = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredEquipment.map((item) => (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-medium">{item.name}</TableCell>
+                  {filteredEquipment.map((item) => {
+                    const warrantyExpired = isWarrantyExpired(item.warranty_expiration);
+                    const warrantyExpiringSoon = isWarrantyExpiringSoon(item.warranty_expiration);
+                    
+                    // Determinar el estilo de la fila
+                    let rowClassName = '';
+                    if (warrantyExpired) {
+                      rowClassName = 'bg-destructive/5 border-l-4 border-l-destructive hover:bg-destructive/10';
+                    } else if (warrantyExpiringSoon) {
+                      rowClassName = 'bg-warning/5 border-l-4 border-l-warning hover:bg-warning/10';
+                    }
+                    
+                    return (
+                      <TableRow 
+                        key={item.id}
+                        className={rowClassName}
+                      >
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            {item.name}
+                            {warrantyExpired && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-destructive/10 px-2 py-0.5 text-xs font-medium text-destructive">
+                                <AlertTriangle className="h-3 w-3" />
+                                Garantía vencida
+                              </span>
+                            )}
+                            {warrantyExpiringSoon && !warrantyExpired && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-warning/10 px-2 py-0.5 text-xs font-medium text-warning">
+                                <AlertTriangle className="h-3 w-3" />
+                                Garantía por vencer
+                              </span>
+                            )}
+                          </div>
+                        </TableCell>
                       <TableCell className="capitalize">
                         {item.type === 'desktop' ? 'Escritorio' :
                          item.type === 'laptop' ? 'Portátil' :
@@ -188,13 +316,21 @@ const Inventory = () => {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Link to={`/inventory/edit/${item.id}`}>
-                            <Button variant="ghost" size="icon">
+                            <Button variant="ghost" size="icon" title="Editar">
                               <Edit className="h-4 w-4" />
                             </Button>
                           </Link>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleOpenIncidentDialog(item)}
+                            title="Registrar Incidente"
+                          >
+                            <AlertTriangle className="h-4 w-4 text-warning" />
+                          </Button>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon">
+                              <Button variant="ghost" size="icon" title="Eliminar">
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </AlertDialogTrigger>
@@ -216,13 +352,60 @@ const Inventory = () => {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
           )}
         </CardContent>
       </Card>
+
+      {/* Diálogo para registrar incidente */}
+      <Dialog open={incidentDialogOpen} onOpenChange={setIncidentDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar Incidente</DialogTitle>
+            <DialogDescription>
+              Registra un incidente para el equipo: <strong>{selectedEquipment?.name}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="importance">Importancia *</Label>
+              <Select value={incidentImportance} onValueChange={(value: 'critical' | 'high' | 'medium' | 'low') => setIncidentImportance(value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona la importancia" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="critical">Crítica</SelectItem>
+                  <SelectItem value="high">Alta</SelectItem>
+                  <SelectItem value="medium">Media</SelectItem>
+                  <SelectItem value="low">Baja</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Descripción del Incidente *</Label>
+              <Textarea
+                id="description"
+                placeholder="Describe detalladamente el incidente ocurrido..."
+                value={incidentDescription}
+                onChange={(e) => setIncidentDescription(e.target.value)}
+                rows={5}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIncidentDialogOpen(false)} disabled={submittingIncident}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmitIncident} disabled={submittingIncident || !incidentDescription.trim()}>
+              {submittingIncident ? 'Registrando...' : 'Registrar Incidente'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

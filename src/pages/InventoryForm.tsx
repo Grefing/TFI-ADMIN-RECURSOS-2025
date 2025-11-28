@@ -178,7 +178,12 @@ const InventoryForm = () => {
       setValue("purchaseDate", equipment.purchase_date ? new Date(equipment.purchase_date).toISOString().split('T')[0] : "");
       setValue("warrantyExpiration", equipment.warranty_expiration ? new Date(equipment.warranty_expiration).toISOString().split('T')[0] : "");
       
-      setValue("assignedUser", equipment.assigned_user || "");
+      // Asegurar que el usuario asignado se establezca correctamente
+      if (equipment.assigned_user) {
+        setValue("assignedUser", equipment.assigned_user, { shouldValidate: false, shouldDirty: false });
+      } else {
+        setValue("assignedUser", "", { shouldValidate: false, shouldDirty: false });
+      }
       setValue("status", (equipment.status || 'active') as Equipment["status"]);
       setValue("incidentDescription", equipment.incident_description || "");
       
@@ -586,13 +591,19 @@ const InventoryForm = () => {
 
                 <div className="space-y-2">
                   <Label htmlFor="assignedUser">Usuario Asignado *</Label>
-                  <Input
-                    id="assignedUser"
-                    placeholder="Nombre del usuario"
-                    {...register("assignedUser", {
-                      required: "El usuario es requerido",
-                    })}
-                    className={errors.assignedUser ? "border-destructive" : ""}
+                  <Controller
+                    name="assignedUser"
+                    control={control}
+                    rules={{ required: "El usuario es requerido" }}
+                    render={({ field }) => (
+                      <Input
+                        id="assignedUser"
+                        placeholder="Nombre del usuario"
+                        value={field.value || ""}
+                        onChange={field.onChange}
+                        className={errors.assignedUser ? "border-destructive" : ""}
+                      />
+                    )}
                   />
                   {errors.assignedUser && (
                     <p className="text-sm text-destructive">

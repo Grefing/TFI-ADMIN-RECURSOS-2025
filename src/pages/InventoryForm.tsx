@@ -47,7 +47,7 @@ const InventoryForm = () => {
     watch,
     control,
   } = useForm<Equipment>();
-  const watchType = watch("type");
+  const watchPurchaseDate = watch("purchaseDate");
   
   useEffect(() => {
     const initialize = async () => {
@@ -315,23 +315,35 @@ const InventoryForm = () => {
 
                   <div className="space-y-2">
                     <Label htmlFor="type">Tipo de Equipo *</Label>
-                    <Select
-                      onValueChange={(value) =>
-                        setValue("type", value as Equipment["type"])
-                      }
-                      defaultValue={watchType}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecciona un tipo" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="desktop">Escritorio</SelectItem>
-                        <SelectItem value="laptop">Portátil</SelectItem>
-                        <SelectItem value="server">Servidor</SelectItem>
-                        <SelectItem value="printer">Impresora</SelectItem>
-                        <SelectItem value="other">Otro</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    <Controller
+                      name="type"
+                      control={control}
+                      rules={{ required: "El tipo es requerido" }}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value}
+                          onValueChange={(value) =>
+                            field.onChange(value as Equipment["type"])
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecciona un tipo" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="desktop">Escritorio</SelectItem>
+                            <SelectItem value="laptop">Portátil</SelectItem>
+                            <SelectItem value="server">Servidor</SelectItem>
+                            <SelectItem value="printer">Impresora</SelectItem>
+                            <SelectItem value="other">Otro</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.type && (
+                      <p className="text-sm text-destructive">
+                        {errors.type.message}
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -508,8 +520,20 @@ const InventoryForm = () => {
                   <Input
                     id="warrantyExpiration"
                     type="date"
+                    min={watchPurchaseDate || undefined}
                     {...register("warrantyExpiration", {
                       required: "La fecha es requerida",
+                      validate: (value) => {
+                        if (!watchPurchaseDate) {
+                          return true; // Si no hay fecha de compra, permitir cualquier fecha
+                        }
+                        const purchaseDate = new Date(watchPurchaseDate);
+                        const warrantyDate = new Date(value);
+                        if (warrantyDate < purchaseDate) {
+                          return "La fecha de vencimiento de garantía no puede ser anterior a la fecha de adquisición";
+                        }
+                        return true;
+                      },
                     })}
                     className={
                       errors.warrantyExpiration ? "border-destructive" : ""

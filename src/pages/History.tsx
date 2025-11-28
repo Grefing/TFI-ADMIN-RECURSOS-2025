@@ -114,7 +114,7 @@ const History = () => {
                   const dateB = new Date(b.created_at || b.timestamp || 0).getTime();
                   return dateB - dateA; // Más recientes primero
                 })
-                .map((entry) => (
+                .map((entry) => (      
                 <div
                   key={entry.id}
                   className="flex gap-4 rounded-lg border p-4 transition-colors hover:bg-muted/50"
